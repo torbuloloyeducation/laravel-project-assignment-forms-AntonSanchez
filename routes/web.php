@@ -17,7 +17,7 @@ Route::view('/about', 'about');
 Route::view('/contact', 'contact');
 
 Route::get('/formtest', function(){
-    $emails = session()->get('$emails', []);
+    $emails = session()->get('emails', []);
 
     return view('formtest',[
         'emails' => $emails,
@@ -25,14 +25,40 @@ Route::get('/formtest', function(){
 });
 
 Route::post('/formtest', function(){
-    $email = request('email');
 
-    session()->push('$emails', $email);
+    $validated = request()->validate([
+        'email' => 'required|email'
+    ]);
 
-    return redirect('/formtest');
+    $emails = session()->get('emails', []);
+
+    if (count($emails) >= 5) {
+        return redirect('/formtest')->with('error', 'Maximum of 5 emails only.');
+    }
+
+    if (in_array($validated['email'], $emails)) {
+        return redirect('/formtest')->with('error', 'Email already exists.');
+    }
+
+    $emails[] = $validated['email'];
+    session(['emails' => $emails]);
+
+    return redirect('/formtest')->with('success', 'Email added successfully!');
 });
 
-Route::get('/delete-emails', function(){
-    session()->forget('$emails');
-    return redirect('/formtest');
+Route::post('/formtest/delete/{index}', function ($index) {
+    $emails = session()->get('emails', []);
+
+    if (isset($emails[$index])) {
+        unset($emails[$index]);
+        $emails = array_values($emails); // reindex
+        session(['emails' => $emails]);
+    }
+
+    return redirect('/formtest')->with('success', 'Email deleted.');
+});
+
+Route::get('/delete-emails', function () {
+    session()->forget('emails');
+    return redirect('/formtest')->with('success', 'All emails deleted.');
 });
